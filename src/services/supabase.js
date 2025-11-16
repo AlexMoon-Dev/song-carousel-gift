@@ -37,3 +37,33 @@ export const addSong = async (songData) => {
     throw error;
   }
 };
+
+// Upload a file to Supabase Storage
+export const uploadFile = async (file, bucket) => {
+  try {
+    // Generate unique filename with timestamp
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = fileName;
+
+    // Upload file to storage
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    throw error;
+  }
+};
