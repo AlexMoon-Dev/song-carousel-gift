@@ -47,6 +47,8 @@ export const searchSpotifySongs = async (query) => {
         limit: 10,
       },
     });
+ // ADD THIS LINE TO DEBUG
+    console.log('Spotify API Response:', response.data.tracks.items[0]);
 
     return response.data.tracks.items.map((track) => ({
       spotifyId: track.id,
