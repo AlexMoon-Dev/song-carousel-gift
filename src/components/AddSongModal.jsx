@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { searchSpotifySongs } from '../services/spotify';
-import { addSong } from '../services/supabase';
+import { addSong, uploadFile } from '../services/supabase';
 import '../styles/AddSongModal.css';
 
 const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
@@ -10,11 +10,14 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [note, setNote] = useState('');
+  
+  // Photo upload state (for both tabs)
+  const [photoFile, setPhotoFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Manual entry fields
   const [manualName, setManualName] = useState('');
   const [manualArtist, setManualArtist] = useState('');
-  const [manualPhotoUrl, setManualPhotoUrl] = useState('');
   const [manualNote, setManualNote] = useState('');
 
   const handleSearch = async () => {
@@ -30,10 +33,31 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
     setSelectedSong(song);
   };
 
-  const handleSubmitSearch = async () => {
-    if (!selectedSong) return;
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setPhotoFile(file);
+    } else {
+      alert('Please select a valid image file');
+    }
+  };
 
+  const handleSubmitSearch = async () => {
+    if (!selectedSong) {
+      alert('Please select a song');
+      return;
+    }
+
+    if (!photoFile) {
+      alert('Please upload a photo of you two');
+      return;
+    }
+
+    setIsUploading(true);
     try {
+      // Upload photo to Supabase Storage
+      const photoUrl = await uploadFile(photoFile, 'song-images');
+
       const songData = {
         name: selectedSong.name,
         artist: selectedSong.artist,
@@ -42,7 +66,7 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
         spotify_url: selectedSong.spotifyUrl,
         spotify_id: selectedSong.spotifyId,
         note: note,
-        photo_url: selectedSong.albumArt,
+        photo_url: photoUrl, // Custom uploaded photo
       };
 
       await addSong(songData);
@@ -52,6 +76,8 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
     } catch (error) {
       console.error('Error adding song:', error);
       alert('Failed to add song. Please try again.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -61,13 +87,22 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
       return;
     }
 
+    if (!photoFile) {
+      alert('Please upload a photo');
+      return;
+    }
+
+    setIsUploading(true);
     try {
+      // Upload photo to Supabase Storage
+      const photoUrl = await uploadFile(photoFile, 'song-images');
+
       const songData = {
         name: manualName,
         artist: manualArtist,
-        photo_url: manualPhotoUrl || null,
+        photo_url: photoUrl,
         note: manualNote,
-        album_art: manualPhotoUrl || null,
+        album_art: null,
         preview_url: null,
         spotify_url: null,
         spotify_id: null,
@@ -80,6 +115,8 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
     } catch (error) {
       console.error('Error adding song:', error);
       alert('Failed to add song. Please try again.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -88,9 +125,9 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
     setSearchResults([]);
     setSelectedSong(null);
     setNote('');
+    setPhotoFile(null);
     setManualName('');
     setManualArtist('');
-    setManualPhotoUrl('');
     setManualNote('');
     setActiveTab('search');
   };
@@ -165,6 +202,15 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
 
               {selectedSong && (
                 <div className="note-section">
+                  <label htmlFor="photo-upload">Upload a photo of you two *</label>
+                  <input
+                    type="file"
+                    id="photo-upload"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                  />
+                  {photoFile && <p className="file-selected">✓ {photoFile.name}</p>}
+
                   <label htmlFor="note">Add a note:</label>
                   <textarea
                     id="note"
@@ -173,8 +219,12 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
                     onChange={(e) => setNote(e.target.value)}
                     rows="4"
                   />
-                  <button className="submit-button" onClick={handleSubmitSearch}>
-                    Add Song
+                  <button 
+                    className="submit-button" 
+                    onClick={handleSubmitSearch}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? 'Uploading...' : 'Add Song'}
                   </button>
                 </div>
               )}
@@ -206,14 +256,15 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="manual-photo">Photo URL</label>
+                <label htmlFor="manual-photo-upload">Upload a photo *</label>
                 <input
-                  type="url"
-                  id="manual-photo"
-                  placeholder="Enter photo URL (optional)"
-                  value={manualPhotoUrl}
-                  onChange={(e) => setManualPhotoUrl(e.target.value)}
+                  type="file"
+                  id="manual-photo-upload"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  required
                 />
+                {photoFile && <p className="file-selected">✓ {photoFile.name}</p>}
               </div>
 
               <div className="form-group">
@@ -227,8 +278,12 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
                 />
               </div>
 
-              <button className="submit-button" onClick={handleSubmitManual}>
-                Add Song
+              <button 
+                className="submit-button" 
+                onClick={handleSubmitManual}
+                disabled={isUploading}
+              >
+                {isUploading ? 'Uploading...' : 'Add Song'}
               </button>
             </div>
           )}

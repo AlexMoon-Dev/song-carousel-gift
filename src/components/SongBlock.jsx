@@ -6,7 +6,7 @@ const SongBlock = ({ song }) => {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    if (isHovered && audioRef.current && song.previewUrl) {
+    if (isHovered && audioRef.current && song.preview_url) {
       audioRef.current.play().catch((error) => {
         console.log('Audio play failed:', error);
       });
@@ -14,7 +14,7 @@ const SongBlock = ({ song }) => {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-  }, [isHovered, song.previewUrl]);
+  }, [isHovered, song.preview_url]);
 
   return (
     <div
@@ -22,8 +22,9 @@ const SongBlock = ({ song }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Default: Show custom photo */}
       <img
-        src={song.photoUrl || song.albumArt || '/placeholder.png'}
+        src={song.photo_url || '/placeholder.png'}
         alt={song.name}
         className="song-image"
       />
@@ -31,13 +32,22 @@ const SongBlock = ({ song }) => {
         <div className="song-overlay">
           <div className="song-note">{song.note || 'No note available'}</div>
           <div className="song-info">
-            <div className="song-name">{song.name}</div>
-            <div className="song-artist">{song.artist}</div>
+            {/* Hovered: Show album art */}
+            <img
+              src={song.album_art || '/placeholder.png'}
+              alt={song.name}
+              className="song-image" 
+              style={{ width: '60px', height: '60px' }}
+            />
+            <div style={{padding: '7px', paddingLeft: '20px'}}>
+              <div className="song-name">{song.name}</div>
+              <div className="song-artist">{song.artist}</div>
+            </div>
           </div>
         </div>
       )}
-      {song.previewUrl && (
-        <audio ref={audioRef} src={song.previewUrl} preload="metadata" />
+      {song.preview_url && (
+        <audio ref={audioRef} src={song.preview_url} preload="metadata" />
       )}
     </div>
   );
