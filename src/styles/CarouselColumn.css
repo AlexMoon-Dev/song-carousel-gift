@@ -1,0 +1,54 @@
+.carousel-column {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  border-radius: 10px;
+}
+
+.carousel-track {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation-duration: 40s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Scroll down animation */
+.carousel-column.down .carousel-track {
+  animation-name: scrollDown;
+}
+
+/* Scroll up animation */
+.carousel-column.up .carousel-track {
+  animation-name: scrollUp;
+}
+
+@keyframes scrollDown {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes scrollUp {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* Pause animation on hover */
+.carousel-column:hover .carousel-track {
+  animation-play-state: paused;
+}
+
+@media (max-width: 768px) {
+  .carousel-track {
+    gap: 0.5rem;
+  }
+}
