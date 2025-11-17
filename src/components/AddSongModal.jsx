@@ -1,21 +1,20 @@
 import { useState } from 'react';
 import { searchSpotifySongs } from '../services/spotify';
+import { searchDeezerSong } from '../services/deezer';
 import { addSong, uploadFile } from '../services/supabase';
 import '../styles/AddSongModal.css';
 
 const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
-  const [activeTab, setActiveTab] = useState('search'); // 'search' or 'manual'
+  const [activeTab, setActiveTab] = useState('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [note, setNote] = useState('');
   
-  // Photo upload state (for both tabs)
   const [photoFile, setPhotoFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Manual entry fields
   const [manualName, setManualName] = useState('');
   const [manualArtist, setManualArtist] = useState('');
   const [manualNote, setManualNote] = useState('');
@@ -55,6 +54,21 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
 
     setIsUploading(true);
     try {
+      let previewUrl = selectedSong.previewUrl;
+
+      // If Spotify doesn't have a preview, try Deezer
+      if (!previewUrl) {
+        console.log('Spotify preview not available, trying Deezer...');
+        const deezerResult = await searchDeezerSong(selectedSong.name, selectedSong.artist);
+        
+        if (deezerResult && deezerResult.previewUrl) {
+          previewUrl = deezerResult.previewUrl;
+          console.log('✓ Found preview on Deezer!');
+        } else {
+          console.log('⚠ No preview available on Spotify or Deezer');
+        }
+      }
+
       // Upload photo to Supabase Storage
       const photoUrl = await uploadFile(photoFile, 'song-images');
 
@@ -62,11 +76,11 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
         name: selectedSong.name,
         artist: selectedSong.artist,
         album_art: selectedSong.albumArt,
-        preview_url: selectedSong.previewUrl,
+        preview_url: previewUrl,
         spotify_url: selectedSong.spotifyUrl,
         spotify_id: selectedSong.spotifyId,
         note: note,
-        photo_url: photoUrl, // Custom uploaded photo
+        photo_url: photoUrl,
       };
 
       await addSong(songData);
@@ -94,6 +108,18 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
 
     setIsUploading(true);
     try {
+      // Try to find preview on Deezer
+      let previewUrl = null;
+      console.log('Searching Deezer for preview...');
+      const deezerResult = await searchDeezerSong(manualName, manualArtist);
+      
+      if (deezerResult && deezerResult.previewUrl) {
+        previewUrl = deezerResult.previewUrl;
+        console.log('✓ Found preview on Deezer!');
+      } else {
+        console.log('⚠ No preview available on Deezer');
+      }
+
       // Upload photo to Supabase Storage
       const photoUrl = await uploadFile(photoFile, 'song-images');
 
@@ -103,7 +129,7 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
         photo_url: photoUrl,
         note: manualNote,
         album_art: null,
-        preview_url: null,
+        preview_url: previewUrl,
         spotify_url: null,
         spotify_id: null,
       };
