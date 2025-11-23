@@ -50,6 +50,7 @@ const SongBlock = ({ song }) => {
       />
       {isHovered && (
         <div className="song-overlay">
+          <div></div>
           <div className="song-note">{song.note || 'No note available'}</div>
           <div className="song-info">
             <img
