@@ -1,12 +1,33 @@
 import { useState, useRef, useEffect } from 'react';
+import { searchDeezerSong } from '../services/deezer';
 import '../styles/SongBlock.css';
 
 const SongBlock = ({ song }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(song.preview_url);
   const audioRef = useRef(null);
 
+  // Fetch Deezer preview if needed
   useEffect(() => {
-    if (isHovered && audioRef.current && song.preview_url) {
+    const fetchDeezerPreview = async () => {
+      // If we don't have a preview URL and we're hovered, try to get one from Deezer
+      if (isHovered && !audioUrl && song.name && song.artist) {
+        try {
+          const deezerResult = await searchDeezerSong(song.name, song.artist);
+          if (deezerResult && deezerResult.previewUrl) {
+            setAudioUrl(deezerResult.previewUrl);
+          }
+        } catch (error) {
+          console.error('Error fetching Deezer preview:', error);
+        }
+      }
+    };
+
+    fetchDeezerPreview();
+  }, [isHovered, audioUrl, song.name, song.artist]);
+
+  useEffect(() => {
+    if (isHovered && audioRef.current && audioUrl) {
       audioRef.current.play().catch((error) => {
         console.log('Audio play failed:', error);
       });
@@ -14,7 +35,7 @@ const SongBlock = ({ song }) => {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-  }, [isHovered, song.preview_url]);
+  }, [isHovered, audioUrl]);
 
   return (
     <div
@@ -22,7 +43,6 @@ const SongBlock = ({ song }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Default: Show custom photo */}
       <img
         src={song.photo_url || '/placeholder.png'}
         alt={song.name}
@@ -32,7 +52,6 @@ const SongBlock = ({ song }) => {
         <div className="song-overlay">
           <div className="song-note">{song.note || 'No note available'}</div>
           <div className="song-info">
-            {/* Hovered: Show album art */}
             <img
               src={song.album_art || '/placeholder.png'}
               alt={song.name}
@@ -46,8 +65,8 @@ const SongBlock = ({ song }) => {
           </div>
         </div>
       )}
-      {song.preview_url && (
-        <audio ref={audioRef} src={song.preview_url} preload="metadata" />
+      {audioUrl && (
+        <audio ref={audioRef} src={audioUrl} preload="metadata" />
       )}
     </div>
   );
