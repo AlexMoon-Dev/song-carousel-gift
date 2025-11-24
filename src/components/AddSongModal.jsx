@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { searchSpotifySongs } from '../services/spotify';
+import { searchSpotifySongs, addTrackToPlaylist } from '../services/spotify';
 import { searchDeezerSong } from '../services/deezer';
 import { addSong, uploadFile } from '../services/supabase';
 import '../styles/AddSongModal.css';
@@ -11,7 +11,7 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [note, setNote] = useState('');
-  
+
   const [photoFile, setPhotoFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -42,58 +42,69 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
   };
 
   const handleSubmitSearch = async () => {
-    if (!selectedSong) {
-      alert('Please select a song');
-      return;
-    }
+  if (!selectedSong) {
+    alert('Please select a song');
+    return;
+  }
 
-    if (!photoFile) {
-      alert('Please upload a photo of you two');
-      return;
-    }
+  if (!photoFile) {
+    alert('Please upload a photo of you two');
+    return;
+  }
 
-    setIsUploading(true);
-    try {
-      let previewUrl = selectedSong.previewUrl;
+  setIsUploading(true);
+  try {
+    let previewUrl = selectedSong.previewUrl;
 
-      // If Spotify doesn't have a preview, try Deezer
-      if (!previewUrl) {
-        console.log('Spotify preview not available, trying Deezer...');
-        const deezerResult = await searchDeezerSong(selectedSong.name, selectedSong.artist);
-        
-        if (deezerResult && deezerResult.previewUrl) {
-          previewUrl = deezerResult.previewUrl;
-          console.log('✓ Found preview on Deezer!');
-        } else {
-          console.log('⚠ No preview available on Spotify or Deezer');
-        }
+    // If Spotify doesn't have a preview, try Deezer
+    if (!previewUrl) {
+      console.log('Spotify preview not available, trying Deezer...');
+      const deezerResult = await searchDeezerSong(selectedSong.name, selectedSong.artist);
+      
+      if (deezerResult && deezerResult.previewUrl) {
+        previewUrl = deezerResult.previewUrl;
+        console.log('✓ Found preview on Deezer!');
+      } else {
+        console.log('⚠ No preview available on Spotify or Deezer');
       }
-
-      // Upload photo to Supabase Storage
-      const photoUrl = await uploadFile(photoFile, 'song-images');
-
-      const songData = {
-        name: selectedSong.name,
-        artist: selectedSong.artist,
-        album_art: selectedSong.albumArt,
-        preview_url: previewUrl,
-        spotify_url: selectedSong.spotifyUrl,
-        spotify_id: selectedSong.spotifyId,
-        note: note,
-        photo_url: photoUrl,
-      };
-
-      await addSong(songData);
-      onSongAdded();
-      resetModal();
-      onClose();
-    } catch (error) {
-      console.error('Error adding song:', error);
-      alert('Failed to add song. Please try again.');
-    } finally {
-      setIsUploading(false);
     }
-  };
+
+    // Upload photo to Supabase Storage
+    const photoUrl = await uploadFile(photoFile, 'song-images');
+
+    const songData = {
+      name: selectedSong.name,
+      artist: selectedSong.artist,
+      album_art: selectedSong.albumArt,
+      preview_url: previewUrl,
+      spotify_url: selectedSong.spotifyUrl,
+      spotify_id: selectedSong.spotifyId,
+      note: note,
+      photo_url: photoUrl,
+    };
+
+    await addSong(songData);
+
+    // Add to Spotify playlist if we have a spotify_id
+    if (selectedSong.spotifyId) {
+      const addedToPlaylist = await addTrackToPlaylist(selectedSong.spotifyId);
+      if (addedToPlaylist) {
+        console.log('✓ Song added to Spotify playlist!');
+      } else {
+        console.warn('⚠ Could not add song to playlist (song still saved to database)');
+      }
+    }
+
+    onSongAdded();
+    resetModal();
+    onClose();
+  } catch (error) {
+    console.error('Error adding song:', error);
+    alert('Failed to add song. Please try again.');
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   const handleSubmitManual = async () => {
     if (!manualName.trim() || !manualArtist.trim()) {
@@ -112,7 +123,7 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
       let previewUrl = null;
       console.log('Searching Deezer for preview...');
       const deezerResult = await searchDeezerSong(manualName, manualArtist);
-      
+
       if (deezerResult && deezerResult.previewUrl) {
         previewUrl = deezerResult.previewUrl;
         console.log('✓ Found preview on Deezer!');
@@ -211,9 +222,8 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
                   {searchResults.map((song) => (
                     <div
                       key={song.spotifyId}
-                      className={`search-result-item ${
-                        selectedSong?.spotifyId === song.spotifyId ? 'selected' : ''
-                      }`}
+                      className={`search-result-item ${selectedSong?.spotifyId === song.spotifyId ? 'selected' : ''
+                        }`}
                       onClick={() => handleSelectSong(song)}
                     >
                       <img src={song.albumArt} alt={song.name} />
@@ -245,8 +255,8 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
                     onChange={(e) => setNote(e.target.value)}
                     rows="4"
                   />
-                  <button 
-                    className="submit-button" 
+                  <button
+                    className="submit-button"
                     onClick={handleSubmitSearch}
                     disabled={isUploading}
                   >
@@ -304,8 +314,8 @@ const AddSongModal = ({ isOpen, onClose, onSongAdded }) => {
                 />
               </div>
 
-              <button 
-                className="submit-button" 
+              <button
+                className="submit-button"
                 onClick={handleSubmitManual}
                 disabled={isUploading}
               >
